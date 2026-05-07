@@ -10,26 +10,44 @@
     <main class="app-shell">
       <section class="stage-topbar" aria-label="Presentation controls">
         <div>
-          <p class="eyebrow">Markdown Mindmap</p>
-          <h1>思维导图演示</h1>
+          <p class="eyebrow" id="deckSubtitle">Markdown Mindmap</p>
+          <h1 id="deckTitle">root</h1>
         </div>
-        <div class="controls">
-          <label class="node-scrubber" for="nodeSlider">
-            <span class="slider-label" id="sliderLabel">root</span>
-            <input id="nodeSlider" type="range" min="0" max="0" value="0" aria-label="快速定位节点" />
-          </label>
-          <button class="icon-button" id="prevButton" type="button" aria-label="上一个节点" title="上一个节点">
-            <span aria-hidden="true">↑</span>
-          </button>
-          <button class="icon-button" id="nextButton" type="button" aria-label="下一个节点" title="下一个节点">
-            <span aria-hidden="true">↓</span>
-          </button>
-          <span class="counter" id="counter">1 / 1</span>
+        <div class="controls" aria-label="节点演示操作区">
+          <div class="control-main">
+            <label class="node-scrubber" for="nodeSlider">
+              <input id="nodeSlider" type="range" min="0" max="0" value="0" aria-label="快速定位节点" />
+              <span class="counter" id="counter">1 / 1</span>
+            </label>
+            <div class="node-readout" aria-live="polite">
+              <div class="readout-item readout-current">
+                <span class="readout-label">当前</span>
+                <strong id="currentNodeText">root</strong>
+              </div>
+              <div class="readout-item">
+                <span class="readout-label">下一个</span>
+                <strong id="nextNodeText">a</strong>
+              </div>
+            </div>
+          </div>
+          <div class="step-buttons">
+            <button class="icon-button" id="prevButton" type="button" aria-label="上一个节点" title="上一个节点">
+              <span aria-hidden="true">↑</span>
+            </button>
+            <button class="icon-button" id="nextButton" type="button" aria-label="下一个节点" title="下一个节点">
+              <span aria-hidden="true">↓</span>
+            </button>
+          </div>
         </div>
       </section>
 
       <section class="presentation-frame">
-        <svg id="mindmap" role="img" aria-label="Animated mindmap presentation"></svg>
+        <div id="mindmap" role="img" aria-label="Animated mindmap presentation">
+          <div class="map-layer" id="mapLayer">
+            <svg class="link-layer" id="linkLayer" aria-hidden="true"></svg>
+            <div class="node-layer" id="nodeLayer"></div>
+          </div>
+        </div>
       </section>
     </main>
 

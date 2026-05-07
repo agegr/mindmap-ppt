@@ -1,36 +1,60 @@
 const sourceMarkdown = `
-- root
-    - a
-        - a0
-            - a00
-            - a01
-            - a02
-        - a1
-            - a10
-            - a11
-            - a12
-    - b
-        - b0
-            - b00
-            - b01
-            - b02
-        - b1
-            - b10
-            - b11
-            - b12
+- Markdown Mindmap
+  项目汇报思维导图演示
+    - 需求分析
+      用户目标与演示场景
+        - 核心流程
+          从根节点开始逐步展开
+            - 入口说明
+              先展示项目整体目标
+            - 交互说明
+              键盘与滑条同步切换
+            - 视觉要求
+              保持轻量演示风格
+        - 内容结构
+          Markdown 列表驱动节点
+            - 文本解析
+              支持副标题和主标题
+            - 顺序规则
+              按前序遍历依次展示
+            - 层级关系
+              保留父子连接和路径
+    - 展示设计
+      画布布局与动画策略
+        - 路径布局
+          当前路径保持横向稳定
+            - 主线节点
+              选中路径清晰突出
+            - 完成分支
+              已访问分支保留在上方
+            - 未访问内容
+              隐藏且不占布局空间
+        - 节点弹出与曲线绘制
+            - 节点动画
+              进入时轻微缩放淡入
+            - 曲线动画
+              连接线顺滑绘制出现
+            - 高亮效果
+              当前节点保持橙色光感
 `;
 
-const svg = document.querySelector("#mindmap");
+const mindmap = document.querySelector("#mindmap");
+const mapLayer = document.querySelector("#mapLayer");
+const linkLayer = document.querySelector("#linkLayer");
+const nodeLayer = document.querySelector("#nodeLayer");
+const deckSubtitle = document.querySelector("#deckSubtitle");
+const deckTitle = document.querySelector("#deckTitle");
 const counter = document.querySelector("#counter");
 const prevButton = document.querySelector("#prevButton");
 const nextButton = document.querySelector("#nextButton");
 const nodeSlider = document.querySelector("#nodeSlider");
-const sliderLabel = document.querySelector("#sliderLabel");
+const currentNodeText = document.querySelector("#currentNodeText");
+const nextNodeText = document.querySelector("#nextNodeText");
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const layout = {
-  nodeWidth: 112,
-  nodeHeight: 44,
+  minNodeWidth: 112,
+  minNodeHeight: 44,
   pathGap: 76,
   rowGap: 58,
   stagePaddingX: 88,
@@ -38,19 +62,23 @@ const layout = {
   centerBaseline: 520,
   viewWidth: 960,
   viewHeight: 620,
+  activeNodeViewportPadding: 72,
 };
 
 let activeIndex = 0;
 let root = parseMarkdownTree(sourceMarkdown);
 let preorder = [];
 let idToNode = new Map();
+let nodeMetrics = new Map();
 let renderedNodes = new Map();
 let renderedLinks = new Map();
 
 assignTreeMetadata(root);
 preorder = collectPreorder(root);
 idToNode = new Map(preorder.map((node) => [node.id, node]));
+nodeMetrics = measureAllNodes(preorder);
 nodeSlider.max = String(preorder.length - 1);
+updateDeckHeading(root.label);
 
 prevButton.addEventListener("click", () => setActiveIndex(activeIndex - 1));
 nextButton.addEventListener("click", () => setActiveIndex(activeIndex + 1));
@@ -81,16 +109,27 @@ function parseMarkdownTree(markdown) {
     .split("\n")
     .filter((line) => line.trim())
     .forEach((line) => {
-      const match = line.match(/^(\s*)-\s+(.+)$/);
-      if (!match) {
+      const itemMatch = line.match(/^(\s*)-\s+(.+)$/);
+      if (!itemMatch) {
+        const continuationMatch = line.match(/^(\s+)(\S.*)$/);
+        if (continuationMatch && stack.length > 0) {
+          const indent = continuationMatch[1].replace(/\t/g, "    ").length;
+          const depth = Math.floor(indent / 4);
+          const continuationParent = stack[Math.min(depth, stack.length - 1)];
+
+          if (continuationParent) {
+            continuationParent.label = `${continuationParent.label}\n${continuationMatch[2].trim()}`;
+          }
+        }
+
         return;
       }
 
-      const indent = match[1].replace(/\t/g, "    ").length;
+      const indent = itemMatch[1].replace(/\t/g, "    ").length;
       const depth = Math.floor(indent / 4);
       const node = {
         id: `node-${nextId++}`,
-        label: match[2].trim(),
+        label: itemMatch[2].trim(),
         children: [],
         parent: null,
         depth,
@@ -132,14 +171,36 @@ function setActiveIndex(index) {
 function render() {
   const activeNode = preorder[activeIndex];
   const model = buildVisibleModel(activeNode);
-  const viewBox = computeViewBox(model);
-
-  svg.setAttribute("viewBox", `${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`);
-  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+  const viewport = computeViewport(model);
 
   syncLinks(model.links);
   syncNodes(model.nodes, activeNode);
+  positionMapLayer(viewport);
   updateControls();
+}
+
+function measureAllNodes(nodes) {
+  const measurer = document.createElement("div");
+  measurer.className = "node-measurer";
+  document.body.appendChild(measurer);
+
+  const metrics = new Map();
+  nodes.forEach((node) => {
+    const content = createNodeContent();
+    updateNodeContent(content, node.label);
+    measurer.appendChild(content);
+
+    const rect = content.getBoundingClientRect();
+    metrics.set(node.id, {
+      width: Math.max(layout.minNodeWidth, Math.ceil(rect.width)),
+      height: Math.max(layout.minNodeHeight, Math.ceil(rect.height)),
+    });
+
+    content.remove();
+  });
+
+  measurer.remove();
+  return metrics;
 }
 
 function buildVisibleModel(activeNode) {
@@ -169,19 +230,24 @@ function buildVisibleModel(activeNode) {
     completedSubtrees.reduce((total, subtree) => total + subtree.height, 0) +
     Math.max(0, completedSubtrees.length - 1) * layout.rowGap;
   const baseline = layout.centerBaseline;
+  let pathCursorX = layout.stagePaddingX;
 
   path.forEach((node, index) => {
+    const metric = getNodeMetric(node);
     positions.set(node.id, {
-      x: layout.stagePaddingX + index * (layout.nodeWidth + layout.pathGap),
+      x: pathCursorX + metric.width / 2,
       y: baseline,
     });
+    pathCursorX += metric.width + layout.pathGap;
   });
 
   let cursorY = baseline - layout.rowGap - completedHeight;
   completedSubtrees.forEach((subtree) => {
     const parentPosition = positions.get(path[subtree.depthIndex].id);
+    const parentMetric = getNodeMetric(path[subtree.depthIndex]);
+    const childMetric = getNodeMetric(subtree.child);
     placeSubtree(subtree.child, visibleIds, positions, {
-      x: parentPosition.x + layout.nodeWidth + layout.pathGap,
+      x: parentPosition.x + parentMetric.width / 2 + layout.pathGap + childMetric.width / 2,
       y: cursorY + subtree.height / 2,
     });
     cursorY += subtree.height + layout.rowGap;
@@ -200,6 +266,8 @@ function buildVisibleModel(activeNode) {
       label: node.label,
       x: position.x,
       y: position.y,
+      width: getNodeMetric(node).width,
+      height: getNodeMetric(node).height,
       depth: node.depth,
       preorderIndex: node.preorderIndex,
       isPath,
@@ -208,10 +276,14 @@ function buildVisibleModel(activeNode) {
     });
 
     if (node.parent && positions.has(node.parent.id)) {
+      const parentMetric = getNodeMetric(node.parent);
+      const nodeMetric = getNodeMetric(node);
       links.push({
         id: `${node.parent.id}->${node.id}`,
         from: positions.get(node.parent.id),
+        fromWidth: parentMetric.width,
         to: position,
+        toWidth: nodeMetric.width,
         isPathLink: pathIds.has(node.parent.id) && pathIds.has(node.id),
       });
     }
@@ -234,14 +306,15 @@ function pathToRoot(node) {
 
 function measureSubtree(node, visibleIds) {
   const visibleChildren = node.children.filter((child) => visibleIds.has(child.id));
+  const metric = getNodeMetric(node);
   if (visibleChildren.length === 0) {
-    return { height: layout.nodeHeight };
+    return { height: metric.height };
   }
 
   const childHeights = visibleChildren.map((child) => measureSubtree(child, visibleIds).height);
   return {
     height: Math.max(
-      layout.nodeHeight,
+      metric.height,
       childHeights.reduce((total, height) => total + height, 0) + (childHeights.length - 1) * layout.rowGap,
     ),
   };
@@ -265,30 +338,67 @@ function placeSubtree(node, visibleIds, positions, anchor) {
   let childCursor = anchor.y - totalHeight / 2;
   childMeasures.forEach(({ child, height }) => {
     const childY = childCursor + height / 2;
+    const nodeMetric = getNodeMetric(node);
+    const childMetric = getNodeMetric(child);
     placeSubtree(child, visibleIds, positions, {
-      x: anchor.x + layout.nodeWidth + layout.pathGap,
+      x: anchor.x + nodeMetric.width / 2 + layout.pathGap + childMetric.width / 2,
       y: childY,
     });
     childCursor += height + layout.rowGap;
   });
 }
 
-function computeViewBox(model) {
+function getNodeMetric(node) {
+  return nodeMetrics.get(node.id) ?? {
+    width: layout.minNodeWidth,
+    height: layout.minNodeHeight,
+  };
+}
+
+function computeViewport(model) {
   if (model.nodes.length === 0) {
     return { x: 0, y: 0, width: layout.viewWidth, height: layout.viewHeight };
   }
 
   const pathNodes = model.nodes.filter((node) => node.isPath);
-  const pathMinX = Math.min(...pathNodes.map((node) => node.x - layout.nodeWidth / 2));
-  const pathMaxX = Math.max(...pathNodes.map((node) => node.x + layout.nodeWidth / 2));
+  const pathMinX = Math.min(...pathNodes.map((node) => node.x - node.width / 2));
+  const pathMaxX = Math.max(...pathNodes.map((node) => node.x + node.width / 2));
   const pathCenterX = (pathMinX + pathMaxX) / 2;
+  const activeNode = model.nodes.find((node) => node.isActive);
+  let viewportX = pathCenterX - layout.viewWidth / 2;
+
+  if (activeNode) {
+    const activeRightEdge = activeNode.x + activeNode.width / 2 + layout.activeNodeViewportPadding;
+    const activeLeftEdge = activeNode.x - activeNode.width / 2 - layout.activeNodeViewportPadding;
+
+    if (activeRightEdge > viewportX + layout.viewWidth) {
+      viewportX = activeRightEdge - layout.viewWidth;
+    }
+
+    if (activeLeftEdge < viewportX) {
+      viewportX = activeLeftEdge;
+    }
+  }
 
   return {
-    x: pathCenterX - layout.viewWidth / 2,
+    x: viewportX,
     y: model.baseline - layout.viewHeight / 2,
     width: layout.viewWidth,
     height: layout.viewHeight,
   };
+}
+
+function positionMapLayer(viewport) {
+  const frameWidth = mindmap.clientWidth || layout.viewWidth;
+  const frameHeight = mindmap.clientHeight || layout.viewHeight;
+  const scale = Math.min(frameWidth / viewport.width, frameHeight / viewport.height);
+
+  mapLayer.style.width = `${layout.viewWidth}px`;
+  mapLayer.style.height = `${layout.viewHeight}px`;
+  linkLayer.setAttribute("viewBox", `0 0 ${layout.viewWidth} ${layout.viewHeight}`);
+  mapLayer.style.transform = `translate(${frameWidth / 2}px, ${frameHeight / 2}px) scale(${scale}) translate(${
+    -viewport.x - viewport.width / 2
+  }px, ${-viewport.y - viewport.height / 2}px)`;
 }
 
 function syncNodes(nodes, activeNode) {
@@ -297,10 +407,18 @@ function syncNodes(nodes, activeNode) {
   renderedNodes.forEach((entry, id) => {
     if (!liveIds.has(id)) {
       entry.group.classList.add("leaving");
-      window.setTimeout(() => {
+      window.clearTimeout(entry.removalTimer);
+      entry.removalTimer = window.setTimeout(() => {
         entry.group.remove();
         renderedNodes.delete(id);
       }, 220);
+      return;
+    }
+
+    if (entry.removalTimer) {
+      window.clearTimeout(entry.removalTimer);
+      entry.removalTimer = null;
+      entry.group.classList.remove("leaving");
     }
   });
 
@@ -311,89 +429,129 @@ function syncNodes(nodes, activeNode) {
       if (!entry) {
         entry = createNodeElement(node);
         renderedNodes.set(node.id, entry);
-        svg.appendChild(entry.group);
+        nodeLayer.appendChild(entry.group);
       }
 
       entry.group.classList.toggle("active", node.isActive);
       entry.group.classList.toggle("path-node", node.isPath);
       entry.group.classList.toggle("complete-node", node.isComplete);
       entry.group.setAttribute("aria-current", node.id === activeNode.id ? "true" : "false");
-      entry.group.style.transform = `translate(${node.x}px, ${node.y}px)`;
-      entry.label.textContent = node.label;
+      entry.group.style.width = `${node.width}px`;
+      entry.group.style.height = `${node.height}px`;
+      entry.group.style.transform = `translate(${node.x - node.width / 2}px, ${node.y - node.height / 2}px)`;
+      updateNodeContent(entry.content, node.label);
     });
 }
 
 function createNodeElement(node) {
-  const group = document.createElementNS(SVG_NS, "g");
+  const group = document.createElement("div");
   group.classList.add("mind-node", "entering");
   group.setAttribute("tabindex", "-1");
 
-  const content = document.createElementNS(SVG_NS, "g");
-  content.classList.add("node-content");
-
-  const rect = document.createElementNS(SVG_NS, "rect");
-  rect.setAttribute("x", String(-layout.nodeWidth / 2));
-  rect.setAttribute("y", String(-layout.nodeHeight / 2));
-  rect.setAttribute("width", String(layout.nodeWidth));
-  rect.setAttribute("height", String(layout.nodeHeight));
-  rect.setAttribute("rx", "8");
-
-  const text = document.createElementNS(SVG_NS, "text");
-  text.setAttribute("text-anchor", "middle");
-  text.setAttribute("dominant-baseline", "middle");
-  text.textContent = node.label;
-
-  content.append(rect, text);
+  const content = createNodeContent();
+  updateNodeContent(content, node.label);
   group.append(content);
   requestAnimationFrame(() => {
     requestAnimationFrame(() => group.classList.remove("entering"));
   });
 
-  return { group, label: text };
+  return { group, content, removalTimer: null };
+}
+
+function createNodeContent() {
+  const content = document.createElement("div");
+  content.classList.add("node-content");
+  return content;
+}
+
+function updateNodeContent(content, label) {
+  const [subtitle, ...titleLines] = label.split("\n");
+  const title = titleLines.length > 0 ? titleLines.join(" / ") : subtitle;
+
+  content.replaceChildren();
+
+  if (titleLines.length > 0) {
+    const subtitleElement = document.createElement("span");
+    subtitleElement.classList.add("node-subtitle");
+    subtitleElement.textContent = subtitle;
+    content.appendChild(subtitleElement);
+  }
+
+  const titleElement = document.createElement("span");
+  titleElement.classList.add("node-title");
+  titleElement.textContent = title;
+  content.appendChild(titleElement);
 }
 
 function syncLinks(links) {
   const liveIds = new Set(links.map((link) => link.id));
 
-  renderedLinks.forEach((path, id) => {
+  renderedLinks.forEach((entry, id) => {
     if (!liveIds.has(id)) {
-      path.classList.add("leaving");
-      window.setTimeout(() => {
-        path.remove();
+      entry.path.classList.add("leaving");
+      window.clearTimeout(entry.removalTimer);
+      entry.removalTimer = window.setTimeout(() => {
+        entry.path.remove();
         renderedLinks.delete(id);
       }, 220);
+      return;
+    }
+
+    if (entry.removalTimer) {
+      window.clearTimeout(entry.removalTimer);
+      entry.removalTimer = null;
+      entry.path.classList.remove("leaving");
     }
   });
 
   links.forEach((link) => {
-    let path = renderedLinks.get(link.id);
-    if (!path) {
-      path = document.createElementNS(SVG_NS, "path");
+    let entry = renderedLinks.get(link.id);
+    if (!entry) {
+      const path = document.createElementNS(SVG_NS, "path");
       path.classList.add("mind-link", "entering");
       path.setAttribute("pathLength", "1");
-      renderedLinks.set(link.id, path);
-      svg.insertBefore(path, svg.firstChild);
+      entry = { path, removalTimer: null };
+      renderedLinks.set(link.id, entry);
+      linkLayer.appendChild(path);
       window.setTimeout(() => path.classList.remove("entering"), 980);
     }
 
-    path.classList.toggle("path-link", link.isPathLink);
-    path.setAttribute("d", linkPath(link.from, link.to));
+    entry.path.classList.toggle("path-link", link.isPathLink);
+    entry.path.setAttribute("d", linkPath(link));
   });
 }
 
-function linkPath(from, to) {
-  const startX = from.x + layout.nodeWidth / 2;
-  const endX = to.x - layout.nodeWidth / 2;
+function linkPath(link) {
+  const startX = link.from.x + link.fromWidth / 2;
+  const startY = link.from.y;
+  const endX = link.to.x - link.toWidth / 2;
+  const endY = link.to.y;
   const midX = startX + Math.max(36, (endX - startX) * 0.5);
-  return `M ${startX} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${endX} ${to.y}`;
+
+  return `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
 }
 
 function updateControls() {
   const activeNode = preorder[activeIndex];
+  const nextNode = preorder[activeIndex + 1];
+  const sliderProgress = preorder.length <= 1 ? 0 : (activeIndex / (preorder.length - 1)) * 100;
+
   counter.textContent = `${activeIndex + 1} / ${preorder.length}`;
   nodeSlider.value = String(activeIndex);
-  nodeSlider.style.setProperty("--slider-progress", `${(activeIndex / (preorder.length - 1)) * 100}%`);
-  sliderLabel.textContent = activeNode.label;
+  nodeSlider.style.setProperty("--slider-progress", `${sliderProgress}%`);
+  currentNodeText.textContent = formatInlineLabel(activeNode.label);
+  nextNodeText.textContent = nextNode ? formatInlineLabel(nextNode.label) : "结束";
   prevButton.disabled = activeIndex === 0;
   nextButton.disabled = activeIndex === preorder.length - 1;
+}
+
+function updateDeckHeading(label) {
+  const [subtitle, ...titleLines] = label.split("\n");
+
+  deckSubtitle.textContent = subtitle;
+  deckTitle.textContent = titleLines.length > 0 ? titleLines.join("\n") : subtitle;
+}
+
+function formatInlineLabel(label) {
+  return label.replace(/\s*\n\s*/g, " / ");
 }

@@ -6,8 +6,31 @@ This is a small static front-end demo for a PPT-like animated mind map.
 
 - Input data is an unordered-list Markdown tree embedded in `src/main.js`.
 - The tree is traversed in preorder.
-- The visible graph is rendered with SVG.
+- Nodes are rendered as HTML elements so their boxes can grow to contain text.
+- Links are rendered as SVG curves behind the HTML nodes.
 - The UI is plain HTML/CSS/JS, with no build step or runtime dependencies.
+
+## Markdown Data Rules
+
+- Each tree node is one unordered-list Markdown item.
+- A list item may use an indented continuation line for a two-line label:
+
+```md
+- Markdown Mindmap
+  项目汇报思维导图演示
+    - 需求分析
+      用户目标与演示场景
+```
+
+- For two-line labels, the first line is the subtitle and the second line is the main title.
+- The top-left deck heading uses the root node the same way:
+  - root first line -> eyebrow/subtitle
+  - root second line -> main title
+- Node boxes also use the same two-line convention:
+  - first line -> small subtitle
+  - second line -> normal-size title
+- Single-line labels render as a normal one-line node title.
+- Control readouts may collapse multiline labels into an inline preview such as `副标题 / 主标题`.
 
 ## Running And Checking
 
@@ -20,7 +43,7 @@ The dev server is a Python static server. If `5173` is occupied by a stale proce
 ## Core Files
 
 - `index.html`: page shell and top controls.
-- `src/main.js`: Markdown parsing, preorder navigation, layout model, SVG DOM sync.
+- `src/main.js`: Markdown parsing, preorder navigation, layout model, HTML node sync, SVG link sync.
 - `src/styles.css`: page styling, node/link styling, slider styling, animations.
 - `p.md`: original product prompt/spec.
 
@@ -29,7 +52,7 @@ The dev server is a Python static server. If `5173` is occupied by a stale proce
 - Up/down arrow keys move to previous/next preorder node.
 - Top arrow buttons do the same.
 - The range slider jumps directly to a preorder index.
-- Slider label shows the currently selected node label.
+- The second control row shows the current node label and next node label.
 
 Keep all navigation paths going through `setActiveIndex()` so buttons, keyboard, slider, graph, and counter stay synchronized.
 
@@ -39,21 +62,24 @@ Keep all navigation paths going through `setActiveIndex()` so buttons, keyboard,
 - Already visited but non-path branches appear above their parent and preserve tree structure.
 - Unvisited nodes are completely hidden and occupy no layout space.
 - The horizontal selected path should stay visually stable.
-- The SVG camera uses a fixed close view:
+- The camera uses a fixed close view:
   - `layout.viewWidth = 960`
   - `layout.viewHeight = 620`
   - `layout.centerBaseline = 520`
-- Completed branches are allowed to exceed the viewport and be clipped. Do not enlarge the `viewBox` to fit them, because that makes later nodes look smaller.
+- Completed branches are allowed to exceed the viewport and be clipped. Do not enlarge the camera view to fit them, because that makes later nodes look smaller.
+- When long path labels push leaf nodes toward the right edge, the camera should shift right and clip older left-side nodes so the selected node remains fully visible.
 
 ## Animation Rules
 
-- Node content is wrapped as:
+- Node content is HTML and is wrapped as:
 
-```svg
-<g class="node-content">
-  <rect />
-  <text />
-</g>
+```html
+<div class="mind-node">
+  <div class="node-content">
+    <span class="node-subtitle"></span>
+    <span class="node-title"></span>
+  </div>
+</div>
 ```
 
 - New nodes use a simple transition-based pop:
@@ -61,7 +87,7 @@ Keep all navigation paths going through `setActiveIndex()` so buttons, keyboard,
   - active selected state: `scale(1.15)`, `opacity: 1`
   - normal unselected state: `scale(1)`
 - Do not reintroduce keyframe-based transform fill for node pop. It previously prevented selected nodes from animating back down to normal size.
-- Selected nodes keep a stable orange glow via `drop-shadow`; do not use a spreading ring effect unless explicitly requested.
+- Selected nodes keep a stable orange glow via box-shadow; do not use a spreading ring effect unless explicitly requested.
 - Link reveal animation is still keyframe-based and should be preserved:
   - `pathLength="1"` in JS
   - `link-draw` in CSS
