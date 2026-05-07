@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" role="img" aria-label="Flow illustration">
+  <rect width="960" height="620" fill="#f7f6f0"/>
+  <path d="M170 310h620" stroke="#183a4a" stroke-width="14" stroke-linecap="round"/>
+  <path d="M740 260l60 50-60 50" fill="none" stroke="#183a4a" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <g fill="#fffdf8" stroke="#d8894f" stroke-width="6">
+    <rect x="110" y="230" width="160" height="160" rx="24"/>
+    <rect x="400" y="230" width="160" height="160" rx="24"/>
+    <rect x="690" y="230" width="160" height="160" rx="24"/>
+  </g>
+  <g fill="#183a4a">
+    <circle cx="190" cy="310" r="34"/>
+    <circle cx="480" cy="310" r="34"/>
+    <circle cx="770" cy="310" r="34"/>
+  </g>
+</svg>

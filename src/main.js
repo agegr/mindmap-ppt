@@ -1,10 +1,12 @@
 const sourceMarkdown = `
 - Markdown Mindmap
   项目汇报思维导图演示
+  @image ./assets/illustrations/overview.svg
     - 需求分析
       用户目标与演示场景
         - 核心流程
           从根节点开始逐步展开
+          @image ./assets/illustrations/flow.svg
             - 入口说明
               先展示项目整体目标
             - 交互说明
@@ -21,6 +23,7 @@ const sourceMarkdown = `
               保留父子连接和路径
     - 展示设计
       画布布局与动画策略
+      @image ./assets/illustrations/layout.svg
         - 路径布局
           当前路径保持横向稳定
             - 主线节点
@@ -30,6 +33,7 @@ const sourceMarkdown = `
             - 未访问内容
               隐藏且不占布局空间
         - 节点弹出与曲线绘制
+          @image ./assets/illustrations/animation.svg
             - 节点动画
               进入时轻微缩放淡入
             - 曲线动画
@@ -63,20 +67,21 @@ const layout = {
   viewWidth: 960,
   viewHeight: 620,
   activeNodeViewportPadding: 72,
+  activeNodeVerticalPadding: 64,
 };
 
 let activeIndex = 0;
 let root = parseMarkdownTree(sourceMarkdown);
 let preorder = [];
 let idToNode = new Map();
-let nodeMetrics = new Map();
 let renderedNodes = new Map();
 let renderedLinks = new Map();
+let cameraTargetIndex = null;
+let currentNodeMetrics = new Map();
 
 assignTreeMetadata(root);
 preorder = collectPreorder(root);
 idToNode = new Map(preorder.map((node) => [node.id, node]));
-nodeMetrics = measureAllNodes(preorder);
 nodeSlider.max = String(preorder.length - 1);
 updateDeckHeading(root.label);
 
@@ -116,9 +121,15 @@ function parseMarkdownTree(markdown) {
           const indent = continuationMatch[1].replace(/\t/g, "    ").length;
           const depth = Math.floor(indent / 4);
           const continuationParent = stack[Math.min(depth, stack.length - 1)];
+          const continuationText = continuationMatch[2].trim();
 
           if (continuationParent) {
-            continuationParent.label = `${continuationParent.label}\n${continuationMatch[2].trim()}`;
+            if (continuationText.startsWith("@image ")) {
+              continuationParent.image = continuationText.slice("@image ".length).trim();
+              return;
+            }
+
+            continuationParent.label = `${continuationParent.label}\n${continuationText}`;
           }
         }
 
@@ -133,6 +144,7 @@ function parseMarkdownTree(markdown) {
         children: [],
         parent: null,
         depth,
+        image: "",
         preorderIndex: 0,
       };
 
@@ -165,13 +177,15 @@ function collectPreorder(node, list = []) {
 
 function setActiveIndex(index) {
   activeIndex = Math.max(0, Math.min(index, preorder.length - 1));
+  cameraTargetIndex = null;
   render();
 }
 
 function render() {
   const activeNode = preorder[activeIndex];
+  currentNodeMetrics = measureAllNodes(preorder, activeNode);
   const model = buildVisibleModel(activeNode);
-  const viewport = computeViewport(model);
+  const viewport = computeViewport(model, cameraTargetIndex);
 
   syncLinks(model.links);
   syncNodes(model.nodes, activeNode);
@@ -179,7 +193,7 @@ function render() {
   updateControls();
 }
 
-function measureAllNodes(nodes) {
+function measureAllNodes(nodes, activeNode) {
   const measurer = document.createElement("div");
   measurer.className = "node-measurer";
   document.body.appendChild(measurer);
@@ -187,16 +201,16 @@ function measureAllNodes(nodes) {
   const metrics = new Map();
   nodes.forEach((node) => {
     const content = createNodeContent();
-    updateNodeContent(content, node.label);
-    measurer.appendChild(content);
+    updateNodeContent(content, node, node.id === activeNode.id);
+    measurer.appendChild(content.root);
 
-    const rect = content.getBoundingClientRect();
+    const rect = content.root.getBoundingClientRect();
     metrics.set(node.id, {
       width: Math.max(layout.minNodeWidth, Math.ceil(rect.width)),
       height: Math.max(layout.minNodeHeight, Math.ceil(rect.height)),
     });
 
-    content.remove();
+    content.root.remove();
   });
 
   measurer.remove();
@@ -349,13 +363,13 @@ function placeSubtree(node, visibleIds, positions, anchor) {
 }
 
 function getNodeMetric(node) {
-  return nodeMetrics.get(node.id) ?? {
+  return currentNodeMetrics.get(node.id) ?? {
     width: layout.minNodeWidth,
     height: layout.minNodeHeight,
   };
 }
 
-function computeViewport(model) {
+function computeViewport(model, targetIndex = null) {
   if (model.nodes.length === 0) {
     return { x: 0, y: 0, width: layout.viewWidth, height: layout.viewHeight };
   }
@@ -365,11 +379,14 @@ function computeViewport(model) {
   const pathMaxX = Math.max(...pathNodes.map((node) => node.x + node.width / 2));
   const pathCenterX = (pathMinX + pathMaxX) / 2;
   const activeNode = model.nodes.find((node) => node.isActive);
+  const targetNode =
+    targetIndex === null ? activeNode : model.nodes.find((node) => node.preorderIndex === targetIndex) ?? activeNode;
   let viewportX = pathCenterX - layout.viewWidth / 2;
+  let viewportY = model.baseline - layout.viewHeight / 2;
 
-  if (activeNode) {
-    const activeRightEdge = activeNode.x + activeNode.width / 2 + layout.activeNodeViewportPadding;
-    const activeLeftEdge = activeNode.x - activeNode.width / 2 - layout.activeNodeViewportPadding;
+  if (targetNode) {
+    const activeRightEdge = targetNode.x + targetNode.width / 2 + layout.activeNodeViewportPadding;
+    const activeLeftEdge = targetNode.x - targetNode.width / 2 - layout.activeNodeViewportPadding;
 
     if (activeRightEdge > viewportX + layout.viewWidth) {
       viewportX = activeRightEdge - layout.viewWidth;
@@ -378,11 +395,22 @@ function computeViewport(model) {
     if (activeLeftEdge < viewportX) {
       viewportX = activeLeftEdge;
     }
+
+    const targetTopEdge = targetNode.y - targetNode.height / 2 - layout.activeNodeVerticalPadding;
+    const targetBottomEdge = targetNode.y + targetNode.height / 2 + layout.activeNodeVerticalPadding;
+
+    if (targetBottomEdge > viewportY + layout.viewHeight) {
+      viewportY = targetBottomEdge - layout.viewHeight;
+    }
+
+    if (targetTopEdge < viewportY) {
+      viewportY = targetTopEdge;
+    }
   }
 
   return {
     x: viewportX,
-    y: model.baseline - layout.viewHeight / 2,
+    y: viewportY,
     width: layout.viewWidth,
     height: layout.viewHeight,
   };
@@ -435,22 +463,33 @@ function syncNodes(nodes, activeNode) {
       entry.group.classList.toggle("active", node.isActive);
       entry.group.classList.toggle("path-node", node.isPath);
       entry.group.classList.toggle("complete-node", node.isComplete);
+      entry.group.classList.toggle("camera-target", node.preorderIndex === cameraTargetIndex);
+      entry.group.dataset.nodeId = node.id;
       entry.group.setAttribute("aria-current", node.id === activeNode.id ? "true" : "false");
+      entry.group.setAttribute("aria-label", `查看 ${formatInlineLabel(node.label)} 的视角`);
       entry.group.style.width = `${node.width}px`;
       entry.group.style.height = `${node.height}px`;
       entry.group.style.transform = `translate(${node.x - node.width / 2}px, ${node.y - node.height / 2}px)`;
-      updateNodeContent(entry.content, node.label);
+      updateNodeContent(entry.content, idToNode.get(node.id), node.isActive);
     });
 }
 
 function createNodeElement(node) {
   const group = document.createElement("div");
   group.classList.add("mind-node", "entering");
-  group.setAttribute("tabindex", "-1");
+  group.setAttribute("role", "button");
+  group.setAttribute("tabindex", "0");
+  group.addEventListener("click", () => focusCameraOnNode(node.id));
+  group.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      focusCameraOnNode(node.id);
+    }
+  });
 
   const content = createNodeContent();
-  updateNodeContent(content, node.label);
-  group.append(content);
+  updateNodeContent(content, node, node.preorderIndex === activeIndex);
+  group.append(content.root);
   requestAnimationFrame(() => {
     requestAnimationFrame(() => group.classList.remove("entering"));
   });
@@ -458,29 +497,56 @@ function createNodeElement(node) {
   return { group, content, removalTimer: null };
 }
 
+function focusCameraOnNode(nodeId) {
+  const node = idToNode.get(nodeId);
+  if (!node) {
+    return;
+  }
+
+  cameraTargetIndex = node.preorderIndex === activeIndex ? null : node.preorderIndex;
+  render();
+}
+
 function createNodeContent() {
   const content = document.createElement("div");
   content.classList.add("node-content");
-  return content;
+
+  const subtitle = document.createElement("span");
+  subtitle.classList.add("node-subtitle");
+
+  const title = document.createElement("span");
+  title.classList.add("node-title");
+
+  const imageWrap = document.createElement("span");
+  imageWrap.classList.add("node-image");
+
+  const image = document.createElement("img");
+  imageWrap.appendChild(image);
+  content.append(subtitle, title, imageWrap);
+
+  return { root: content, subtitle, title, imageWrap, image };
 }
 
-function updateNodeContent(content, label) {
-  const [subtitle, ...titleLines] = label.split("\n");
+function updateNodeContent(content, node, isActive) {
+  const [subtitle, ...titleLines] = node.label.split("\n");
   const title = titleLines.length > 0 ? titleLines.join(" / ") : subtitle;
 
-  content.replaceChildren();
+  content.root.classList.toggle("has-subtitle", titleLines.length > 0);
+  content.root.classList.toggle("has-node-image", Boolean(node.image));
+  content.root.classList.toggle("image-expanded", Boolean(node.image) && isActive);
+  content.subtitle.textContent = subtitle;
+  content.title.textContent = title;
 
-  if (titleLines.length > 0) {
-    const subtitleElement = document.createElement("span");
-    subtitleElement.classList.add("node-subtitle");
-    subtitleElement.textContent = subtitle;
-    content.appendChild(subtitleElement);
+  if (node.image) {
+    if (content.image.getAttribute("src") !== node.image) {
+      content.image.src = node.image;
+    }
+
+    content.image.alt = `${formatInlineLabel(node.label)} 插图`;
+  } else {
+    content.image.removeAttribute("src");
+    content.image.alt = "";
   }
-
-  const titleElement = document.createElement("span");
-  titleElement.classList.add("node-title");
-  titleElement.textContent = title;
-  content.appendChild(titleElement);
 }
 
 function syncLinks(links) {
@@ -546,12 +612,20 @@ function updateControls() {
 }
 
 function updateDeckHeading(label) {
-  const [subtitle, ...titleLines] = label.split("\n");
+  const heading = splitLabel(label);
 
-  deckSubtitle.textContent = subtitle;
-  deckTitle.textContent = titleLines.length > 0 ? titleLines.join("\n") : subtitle;
+  deckSubtitle.textContent = heading.subtitle;
+  deckTitle.textContent = heading.title;
 }
 
 function formatInlineLabel(label) {
   return label.replace(/\s*\n\s*/g, " / ");
+}
+
+function splitLabel(label) {
+  const [subtitle, ...titleLines] = label.split("\n");
+  return {
+    subtitle,
+    title: titleLines.length > 0 ? titleLines.join("\n") : subtitle,
+  };
 }

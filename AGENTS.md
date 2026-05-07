@@ -31,6 +31,25 @@ This is a small static front-end demo for a PPT-like animated mind map.
   - second line -> normal-size title
 - Single-line labels render as a normal one-line node title.
 - Control readouts may collapse multiline labels into an inline preview such as `副标题 / 主标题`.
+- A node may optionally attach one illustration with an `@image` metadata continuation line:
+
+```md
+- 展示设计
+  画布布局与动画策略
+  @image ./assets/illustrations/layout.svg
+```
+
+- `@image` lines are metadata only:
+  - They do not appear in node text.
+  - A node may have at most one image.
+  - Supported image formats are whatever browser `<img>` supports; use PNG, JPG/JPEG, or SVG for project assets.
+  - Prefer local project-relative paths such as `./assets/illustrations/example.svg`, `./assets/illustrations/example.png`, or `./assets/illustrations/example.jpg`.
+  - If multiple `@image` lines are added to one node, the latest parsed value wins.
+- Illustrations render inside their node card:
+  - selected image nodes show the image expanded below the node text
+  - non-selected image nodes show a small thumbnail below the node text
+  - nodes without `@image` do not reserve image space
+- Image expansion follows the real selected preorder node only. Clicking a node to move the camera must not expand its image unless it also changes `activeIndex`.
 
 ## Running And Checking
 
@@ -45,6 +64,7 @@ The dev server is a Python static server. If `5173` is occupied by a stale proce
 - `index.html`: page shell and top controls.
 - `src/main.js`: Markdown parsing, preorder navigation, layout model, HTML node sync, SVG link sync.
 - `src/styles.css`: page styling, node/link styling, slider styling, animations.
+- `assets/illustrations/`: optional local illustration assets referenced by `@image`.
 - `p.md`: original product prompt/spec.
 
 ## Interaction Rules
@@ -53,6 +73,7 @@ The dev server is a Python static server. If `5173` is occupied by a stale proce
 - Top arrow buttons do the same.
 - The range slider jumps directly to a preorder index.
 - The second control row shows the current node label and next node label.
+- Clicking a visible node moves the camera to that node's current-layout position without changing the selected node or expanded image.
 
 Keep all navigation paths going through `setActiveIndex()` so buttons, keyboard, slider, graph, and counter stay synchronized.
 
@@ -68,6 +89,12 @@ Keep all navigation paths going through `setActiveIndex()` so buttons, keyboard,
   - `layout.centerBaseline = 520`
 - Completed branches are allowed to exceed the viewport and be clipped. Do not enlarge the camera view to fit them, because that makes later nodes look smaller.
 - When long path labels push leaf nodes toward the right edge, the camera should shift right and clip older left-side nodes so the selected node remains fully visible.
+- Image nodes participate in normal layout. The node box must grow to contain the thumbnail or expanded image.
+- Expanded images may increase node height; camera logic should keep the selected node fully visible vertically and horizontally.
+- SVG links should connect from node border to node border, using the full node box dimensions.
+- Node images should use `object-fit: contain` so oversized images shrink to the configured thumbnail/expanded bounds without cropping.
+- Image expand/collapse should be animated smoothly when selection changes. Preserve CSS transitions for the image container size and image transform.
+- Do not rebuild the node image DOM on every render; reuse stable `img` elements and toggle classes so browser transitions can interpolate thumbnail-to-expanded size changes.
 
 ## Animation Rules
 
