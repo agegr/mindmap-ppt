@@ -345,7 +345,9 @@ function createNodeElement(node) {
 
   content.append(rect, text);
   group.append(content);
-  window.setTimeout(() => group.classList.remove("entering"), 1240);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => group.classList.remove("entering"));
+  });
 
   return { group, label: text };
 }

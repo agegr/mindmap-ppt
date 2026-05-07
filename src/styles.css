@@ -246,19 +246,20 @@ h1 {
 .node-content {
   transform-box: fill-box;
   transform-origin: center;
-  transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.mind-node.entering .node-content {
-  animation: node-pop 980ms cubic-bezier(0.18, 1.18, 0.32, 1) both;
+  transform: scale(1);
+  opacity: 1;
+  transition:
+    transform 520ms cubic-bezier(0.18, 1.18, 0.32, 1),
+    opacity 260ms ease;
 }
 
 .mind-node.active .node-content {
-  transform: scale(1.08);
+  transform: scale(1.15);
 }
 
-.mind-node.entering text {
-  animation: label-fade 980ms cubic-bezier(0.18, 1.18, 0.32, 1) both;
+.mind-node.entering .node-content {
+  opacity: 0;
+  transform: scale(0.58);
 }
 
 .mind-node rect {
@@ -293,6 +294,9 @@ h1 {
   fill: #183a4a;
   stroke: #d8894f;
   stroke-width: 3;
+  filter:
+    drop-shadow(0 0 14px rgba(216, 137, 79, 0.42))
+    drop-shadow(0 12px 22px rgba(24, 38, 44, 0.16));
 }
 
 .mind-node.active text {
@@ -323,40 +327,6 @@ h1 {
 .mind-link.path-link {
   stroke: rgba(24, 58, 74, 0.74);
   stroke-width: 4;
-}
-
-@keyframes node-pop {
-  0% {
-    opacity: 0;
-    transform: scale(0.58) translateY(10px);
-    filter: drop-shadow(0 0 0 rgba(216, 137, 79, 0));
-  }
-
-  56% {
-    opacity: 1;
-    transform: scale(1.08) translateY(-2px);
-    filter: drop-shadow(0 18px 26px rgba(216, 137, 79, 0.26));
-  }
-
-  100% {
-    opacity: 1;
-    transform: scale(1.08) translateY(0);
-    filter: drop-shadow(0 10px 18px rgba(24, 38, 44, 0.11));
-  }
-}
-
-@keyframes label-fade {
-  0% {
-    opacity: 0;
-  }
-
-  42% {
-    opacity: 0.92;
-  }
-
-  100% {
-    opacity: 1;
-  }
 }
 
 @keyframes link-draw {
