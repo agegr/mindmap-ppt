@@ -35,6 +35,11 @@ const wheelNavigation = {
   threshold: 72,
   idleResetMs: 180,
 };
+const swipeNavigation = {
+  intentDistance: 10,
+  minDistance: 56,
+  dominanceRatio: 1.25,
+};
 
 let activeIndex = 0;
 let root = parseMarkdownTree(sourceMarkdown);
@@ -48,6 +53,7 @@ let cameraZoom = Number(zoomSlider.value) / 100;
 let activeScale = Number(activeScaleSlider.value) / 100;
 let wheelDeltaBuffer = 0;
 let wheelNavigationTimer = null;
+let swipeStart = null;
 
 assignTreeMetadata(root);
 preorder = collectPreorder(root);
@@ -78,6 +84,10 @@ activeScaleSlider.addEventListener("input", (event) => {
 window.addEventListener("keydown", handleKeydown);
 window.addEventListener("wheel", handleWheel, { passive: false });
 window.addEventListener("resize", () => render());
+mindmap.addEventListener("touchstart", handleTouchStart, { passive: true });
+mindmap.addEventListener("touchmove", handleTouchMove, { passive: false });
+mindmap.addEventListener("touchend", handleTouchEnd, { passive: false });
+mindmap.addEventListener("touchcancel", resetSwipeStart);
 
 render();
 
@@ -148,6 +158,64 @@ function normalizeWheelDeltaY(event) {
   }
 
   return event.deltaY;
+}
+
+function handleTouchStart(event) {
+  if (imageViewer.isOpen() || event.touches.length !== 1) {
+    resetSwipeStart();
+    return;
+  }
+
+  const touch = event.touches[0];
+  swipeStart = {
+    x: touch.clientX,
+    y: touch.clientY,
+    isVerticalSwipe: false,
+  };
+}
+
+function handleTouchMove(event) {
+  if (!swipeStart || event.touches.length !== 1) {
+    return;
+  }
+
+  const touch = event.touches[0];
+  const dx = touch.clientX - swipeStart.x;
+  const dy = touch.clientY - swipeStart.y;
+  const isVerticalIntent =
+    Math.abs(dy) >= swipeNavigation.intentDistance &&
+    Math.abs(dy) > Math.abs(dx) * swipeNavigation.dominanceRatio;
+
+  if (swipeStart.isVerticalSwipe || isVerticalIntent) {
+    swipeStart.isVerticalSwipe = true;
+    event.preventDefault();
+  }
+}
+
+function handleTouchEnd(event) {
+  if (!swipeStart || event.changedTouches.length === 0) {
+    resetSwipeStart();
+    return;
+  }
+
+  const touch = event.changedTouches[0];
+  const dx = touch.clientX - swipeStart.x;
+  const dy = touch.clientY - swipeStart.y;
+  const isVerticalSwipe =
+    swipeStart.isVerticalSwipe &&
+    Math.abs(dy) >= swipeNavigation.minDistance &&
+    Math.abs(dy) > Math.abs(dx) * swipeNavigation.dominanceRatio;
+
+  if (isVerticalSwipe) {
+    event.preventDefault();
+    setActiveIndex(activeIndex + (dy < 0 ? 1 : -1));
+  }
+
+  resetSwipeStart();
+}
+
+function resetSwipeStart() {
+  swipeStart = null;
 }
 
 function parseMarkdownTree(markdown) {
