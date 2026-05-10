@@ -164,8 +164,7 @@ function parseMarkdownTree(markdown) {
         const continuationMatch = line.match(/^(\s+)(\S.*)$/);
         if (continuationMatch && stack.length > 0) {
           const indent = continuationMatch[1].replace(/\t/g, "    ").length;
-          const depth = Math.floor(indent / 4);
-          const continuationParent = stack[Math.min(depth, stack.length - 1)];
+          const continuationParent = findContinuationParent(stack, indent);
           const continuationText = continuationMatch[2].trim();
 
           if (continuationParent) {
@@ -182,7 +181,12 @@ function parseMarkdownTree(markdown) {
       }
 
       const indent = itemMatch[1].replace(/\t/g, "    ").length;
-      const depth = Math.floor(indent / 4);
+
+      while (stack.length > 0 && stack[stack.length - 1].indent >= indent) {
+        stack.pop();
+      }
+
+      const depth = stack.length;
       const node = {
         id: `node-${nextId++}`,
         label: itemMatch[2].trim(),
@@ -196,16 +200,25 @@ function parseMarkdownTree(markdown) {
       if (depth === 0) {
         parsedRoot = node;
       } else {
-        const parent = stack[depth - 1];
+        const parent = stack[depth - 1].node;
         node.parent = parent;
         parent.children.push(node);
       }
 
-      stack[depth] = node;
-      stack.length = depth + 1;
+      stack.push({ node, indent });
     });
 
   return parsedRoot;
+}
+
+function findContinuationParent(stack, indent) {
+  for (let index = stack.length - 1; index >= 0; index -= 1) {
+    if (stack[index].indent <= indent) {
+      return stack[index].node;
+    }
+  }
+
+  return stack[stack.length - 1]?.node ?? null;
 }
 
 function assignTreeMetadata(treeRoot) {

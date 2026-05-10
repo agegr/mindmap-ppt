@@ -14,34 +14,40 @@ export const sourceMarkdown = `
         - 长文提炼
           从文章变成演示大纲
     - 最重要操作
-      像放 PPT 一样播放
+      顺着播放再按需调整
       @image generated/controls-navigation.png
-        - 上下切换
-          键盘或鼠标滚轮前进后退
-        - 进度滑条
-          直接跳到任意节点
-        - 缩放滑条
-          调整画布距离不改内容
-        - 点击节点
-          只移动视角不改变选择
+        - 顺序推进
+          上下键或滚轮前进后退
+        - 跳到重点
+          进度滑条定位任意节点
+        - 调整视野
+          缩放滑条调整画布距离
+          - 临时查看
+            点击节点只移动视角
     - 让 Agent 制作
-      给材料让它更新 project
+      从材料到可播放导图
       @image generated/agent-workflow.png
-        - 安装 Skill
-          先让 Agent 学会项目格式
-        - 提供材料
-          文稿笔记报告都可以
+        - 准备输入
+          材料目标风格说清楚
+          - 提供材料
+            文稿笔记报告都可以
+          - 说明重点
+            受众用途风格越清楚越好
         - 自动产出
-          生成 source.js 和配图
+          更新 source.js 和配图
     - 你会拿到什么
       一个静态网站项目包
       @image generated/project-deliverable.png
-        - 内容文件
-          source.js 管整棵树
-        - 图片素材
-          用 image 元数据引用资源
-        - 本地预览
-          npm run dev
-        - 静态部署
-          GitHub Pages、Netlify、Nginx、任意 CDN/对象存储
+        - 项目资产
+          内容和图片都在 project
+          - 内容文件
+            source.js 管整棵树
+          - 图片素材
+            用 @image 引用本地资源
+        - 使用方式
+          本地预览或静态部署
+          - 本地预览
+            npm run dev
+          - 静态部署
+            GitHub Pages、Netlify、Nginx、CDN
 `;

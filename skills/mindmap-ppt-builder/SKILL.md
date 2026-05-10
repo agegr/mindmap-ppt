@@ -34,11 +34,11 @@ Use this skill inside the `agegr/mindmap-ppt` repository root.
    - For English output, still use an eyebrow/headline structure for two-line nodes when natural.
    - Do not silently correct facts. If the source has obvious contradictions or questionable claims, preserve the claim carefully or mention the conflict to the user.
    - For very long documents, preserve the original chapter structure first. If the material is too broad to reduce confidently, draft a high-level outline and ask the user to confirm priorities before finalizing.
-3. Build a shallow tree:
+3. Build a clear logic tree:
    - root: document/source name or presentation topic
-   - level 1: 2-4 major sections
-   - level 2: 2-4 subpoints per section
-   - level 3: only when needed for concrete examples, evidence, or workflow steps
+   - major branches: usually 2-4 sections, but follow the source logic when another structure is clearer
+   - child nodes: use them for causes, consequences, evidence, examples, process steps, contrasts, or supplements
+   - depth: add levels only when nesting makes the author's logic easier to understand
 4. Write each node as one unordered-list item plus an optional continuation line:
 
 ```md
@@ -77,6 +77,9 @@ Escape backticks and `${...}` sequences before writing user-derived text inside 
 
 ## Mindmap Authoring Rules
 
+- Do not force every deck into a strict `root -> level 1 -> level 2 -> level 3` taxonomy. That shape is only a useful default, not a rule.
+- Let the hierarchy express the author's logic structure. If cause A leads to result B, B can be a child node of A; if B further leads to result C, form an `A -> B -> C` subtree.
+- The only hard principle is clarity: a reader should understand why each child node belongs under its parent and what relationship is being expressed.
 - Follow the source order. This app reveals nodes in preorder: parent first, then all children. Do not move conclusions from later text into earlier parent labels.
 - Do not repeat the root topic in child nodes. If the root already states the problem or theme, children should advance the story.
 - Group nearby meanings under one parent. Keep backgrounds, criteria, risks, product/tool inventories, recommendations, and conclusions in their own coherent branches.
