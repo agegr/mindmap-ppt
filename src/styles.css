@@ -60,9 +60,14 @@ h1 {
   --slider-readout-gap: 14px;
   --slider-readout-width: 72px;
   --zoom-control-pad-x: 12px;
+  --control-readout-right: 42px;
   display: grid;
   grid-template-rows: 34px auto;
   gap: 8px;
+  min-width: 0;
+  transition:
+    opacity 220ms ease,
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .node-scrubber {
@@ -72,6 +77,7 @@ h1 {
   gap: var(--slider-readout-gap);
   min-width: 0;
   height: 34px;
+  padding-right: var(--control-readout-right);
 }
 
 #nodeSlider {
@@ -147,7 +153,6 @@ h1 {
 
 .counter {
   min-width: var(--slider-readout-width);
-  padding-right: var(--zoom-control-pad-x);
   color: #515d66;
   font-size: 0.94rem;
   font-weight: 800;
@@ -245,7 +250,7 @@ h1 {
   align-items: center;
   gap: var(--slider-readout-gap);
   min-height: 68px;
-  padding: 0 var(--zoom-control-pad-x);
+  padding: 0 var(--control-readout-right) 0 var(--zoom-control-pad-x);
 }
 
 .zoom-icon {
@@ -326,6 +331,7 @@ h1 {
 
 .control-hint {
   margin: 8px 0 0;
+  padding-right: var(--control-readout-right);
   color: rgba(81, 93, 102, 0.78);
   font-size: 0.78rem;
   font-weight: 750;
@@ -440,12 +446,76 @@ h1 {
 }
 
 .controls {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: stretch;
   width: min(820px, 66vw);
   min-width: min(680px, 62vw);
   padding: 12px;
+  transition:
+    width 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    min-width 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.controls-toggle {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(24, 58, 74, 0.14);
+  border-radius: 8px;
+  color: #183a4a;
+  background: rgba(255, 255, 255, 0.38);
+  box-shadow: 0 6px 14px rgba(24, 36, 42, 0.08);
+  cursor: pointer;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+
+.controls-toggle:hover,
+.controls-toggle:focus-visible {
+  border-color: rgba(216, 137, 79, 0.42);
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.controls-toggle:focus-visible {
+  outline: 3px solid rgba(216, 137, 79, 0.2);
+  outline-offset: 2px;
+}
+
+.controls-toggle span {
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+  transform: translateY(-1px);
+}
+
+.controls.collapsed {
+  width: 46px;
+  min-width: 46px;
+  height: 46px;
+  padding: 12px;
+}
+
+.controls.collapsed .control-main {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.96);
+  visibility: hidden;
+}
+
+.controls.collapsed .controls-toggle {
+  right: 12px;
+  top: 12px;
 }
 
 #mindmap {
@@ -893,6 +963,7 @@ h1 {
     --slider-readout-gap: 10px;
     --slider-readout-width: 58px;
     --zoom-control-pad-x: 10px;
+    --control-readout-right: 38px;
   }
 
   .node-readout {
@@ -913,11 +984,11 @@ h1 {
 
   .zoom-control {
     min-height: 54px;
-    padding: 0 10px;
+    padding: 0 var(--control-readout-right) 0 var(--zoom-control-pad-x);
   }
 
   .control-hint {
-    text-align: left;
+    text-align: right;
   }
 
   h1 {

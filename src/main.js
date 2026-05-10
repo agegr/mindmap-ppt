@@ -7,6 +7,9 @@ const nodeLayer = document.querySelector("#nodeLayer");
 const deckSubtitle = document.querySelector("#deckSubtitle");
 const deckTitle = document.querySelector("#deckTitle");
 const counter = document.querySelector("#counter");
+const controls = document.querySelector(".controls");
+const controlsBody = document.querySelector("#controlsBody");
+const controlsToggle = document.querySelector("#controlsToggle");
 const nodeSlider = document.querySelector("#nodeSlider");
 const zoomSlider = document.querySelector("#zoomSlider");
 const zoomValue = document.querySelector("#zoomValue");
@@ -52,6 +55,15 @@ idToNode = new Map(preorder.map((node) => [node.id, node]));
 nodeSlider.max = String(preorder.length);
 updateDeckHeading(root.label);
 
+controlsToggle.addEventListener("click", () => {
+  const isCollapsed = controls.classList.toggle("collapsed");
+  controlsBody.inert = isCollapsed;
+  controlsBody.setAttribute("aria-hidden", String(isCollapsed));
+  controlsToggle.setAttribute("aria-expanded", String(!isCollapsed));
+  controlsToggle.setAttribute("aria-label", isCollapsed ? "展开控制面板" : "收起控制面板");
+  controlsToggle.title = isCollapsed ? "展开控制面板" : "收起控制面板";
+  controlsToggle.querySelector("span").textContent = isCollapsed ? "+" : "−";
+});
 nodeSlider.addEventListener("input", (event) => {
   setActiveIndex(Number(event.target.value));
 });

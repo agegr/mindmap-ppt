@@ -23,7 +23,18 @@
           </div>
 
           <div class="controls glass-panel" aria-label="节点演示操作区">
-            <div class="control-main">
+            <button
+              class="controls-toggle"
+              id="controlsToggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="controlsBody"
+              aria-label="收起控制面板"
+              title="收起控制面板"
+            >
+              <span aria-hidden="true">−</span>
+            </button>
+            <div class="control-main" id="controlsBody">
               <label class="node-scrubber" for="nodeSlider">
                 <input id="nodeSlider" type="range" min="0" max="0" value="0" aria-label="快速定位节点" />
                 <span class="counter" id="counter">1 / 1</span>
