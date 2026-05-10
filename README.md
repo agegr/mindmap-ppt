@@ -2,6 +2,12 @@
 
 一个 PPT 式动态思维导图演示工具。它适合把演讲汇报、课程笔记、产品说明和长文稿，变成可以逐步讲述的图文导图。
 
+## 静态网站
+
+这个项目本质上是一个静态网站：页面由 `index.html`、`src/styles.css`、`src/main.js`、`project/source.js` 和 `project/` 里的图片素材组成。
+
+它没有构建步骤、运行时依赖、后端 API 或数据库。`npm run dev` 只是本地预览用的静态文件服务器；正式使用时可以部署到 GitHub Pages、Netlify、Vercel Static、Nginx、对象存储或任意 CDN/静态托管服务。
+
 ## 在线演示
 
 https://agegr.github.io/mindmap-ppt/

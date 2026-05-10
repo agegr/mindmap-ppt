@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="960" height="620" viewBox="0 0 960 620" role="img" aria-label="Animation illustration">
-  <rect width="960" height="620" fill="#f7f6f0"/>
-  <circle cx="260" cy="320" r="92" fill="#eef7f3" stroke="#183a4a" stroke-width="6"/>
-  <circle cx="480" cy="320" r="118" fill="#fffdf8" stroke="#d8894f" stroke-width="8"/>
-  <circle cx="720" cy="320" r="92" fill="#183a4a"/>
-  <path d="M370 320h90M600 320h90" stroke="#183a4a" stroke-width="12" stroke-linecap="round" stroke-dasharray="24 24"/>
-  <path d="M695 285l55 35-55 35" fill="none" stroke="#ffffff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>
