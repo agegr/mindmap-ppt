@@ -55,7 +55,7 @@ Use the first line as a short category label and the second line as the main mes
    - Prefer nodes that summarize a process, architecture, comparison, timeline, metric, or conceptual model.
 6. Generate illustrations for chosen nodes with GPT Image 2 or the available image generation tool. Save them under `project/` or a subfolder of `project/`.
    - Prefer PNG for generated raster illustrations, SVG for simple diagram placeholders, and JPG only for photo-like assets.
-   - If image generation is unavailable, either omit images or create simple SVG placeholder diagrams under `project/` using the same restrained palette. Use 16:10 composition, no text inside images, and descriptive kebab-case filenames such as `project/demo-flow.svg`.
+   - If image generation is unavailable, either omit images or create simple SVG placeholder diagrams under `project/` using the same restrained palette. Use 16:10 composition, minimal short text only when useful, and descriptive kebab-case filenames such as `project/demo-flow.svg`.
 7. Reference images in Markdown metadata lines:
 
 ```md
@@ -126,11 +126,11 @@ Use this style prompt for GPT Image 2:
 Create a clean presentation illustration for a light PPT mind-map node.
 Subject: <node main idea>.
 Include: <2-4 concrete visual elements from the source text>.
-Style: restrained vector-like editorial illustration, warm off-white background, dark teal #183a4a, muted green #eef7f3, orange accent #d8894f, simple geometric shapes, thin shadows, small 8px-radius card-like forms, no photorealism, no text, no logos, no busy decorations.
+Style: restrained vector-like editorial illustration, warm off-white background, dark teal #183a4a, muted green #eef7f3, orange accent #d8894f, simple geometric shapes, thin shadows, small 8px-radius card-like forms, no photorealism, minimal short text only when useful, no logos, no busy decorations.
 Composition: centered, generous whitespace, readable at thumbnail size, aspect ratio 16:10.
 ```
 
-If the source needs a real chart, diagram, or screenshot, create a simple diagrammatic illustration instead of inventing precise numbers. Do not put text in images; labels belong in nodes.
+If the source needs a real chart, diagram, or screenshot, create a simple diagrammatic illustration instead of inventing precise numbers. Prefer no text in images; when text improves comprehension, use only 1-3 short labels or keywords and keep detailed labels in nodes.
 
 ## SVG Placeholder Pattern
 
@@ -139,7 +139,7 @@ When no image-generation tool is available but an illustration is still useful, 
 - Size: `1280x800`.
 - Style: warm off-white background, dark teal `#183a4a`, muted green `#eef7f3`, orange accent `#d8894f`.
 - Content: abstract process blocks, arrows, cards, or timeline shapes based on the node idea.
-- No readable text, logos, dense decoration, or photorealism.
+- Minimal short text only when useful; no logos, dense decoration, or photorealism.
 
 ## Authoring Rules
 
